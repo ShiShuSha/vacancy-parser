@@ -4,9 +4,7 @@ import com.example.Parser.model.Vacancy;
 
 import java.time.Instant;
 
-/**
- * Состояние фоновой задачи разбора вакансии.
- */
+//Состояние фоновой задачи разбора вакансии.
 public record ParseJobView(
         String id,
         String url,
