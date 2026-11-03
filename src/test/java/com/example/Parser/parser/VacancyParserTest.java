@@ -6,11 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Юнит-тесты парсеров на небольших HTML-фрагментах, повторяющих структуру
- * реальных страниц. Сами примеры страниц в проект не сохраняются:
- * приложение получает HTML с сайта по HTTP и разбирает его в памяти.
- */
+//Юнит-тесты парсеров на небольших HTML-фрагментах, повторяющих структуруреальных страниц.
 class VacancyParserTest {
 
     private static final String HABR_HTML = """
