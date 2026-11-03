@@ -175,7 +175,6 @@ public class HabrVacancyParser implements VacancyParser {
                     }
                 }
             } catch (Exception ignored) {
-                // Встречаются script-блоки с невалидным JSON — просто пропускаем их.
             }
         }
 
