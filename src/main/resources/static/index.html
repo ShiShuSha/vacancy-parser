@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parser — проверка работы</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+
+        body {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        h1 {
+            margin-bottom: 4px;
+        }
+
+        .card {
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        input, select, button {
+            font: inherit;
+            padding: 8px 10px;
+            border: 1px solid #9ca3af;
+            border-radius: 8px;
+        }
+
+        input[type="url"], input[type="text"] {
+            min-width: 260px;
+            flex: 1;
+        }
+
+        button {
+            cursor: pointer;
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+
+        button.secondary {
+            background: transparent;
+            color: inherit;
+            border-color: #9ca3af;
+        }
+
+        button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        label {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        pre {
+            min-height: 220px;
+            max-height: 520px;
+            overflow: auto;
+            padding: 14px;
+            border-radius: 10px;
+            background: #111827;
+            color: #e5e7eb;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        #status {
+            font-weight: 600;
+            min-height: 24px;
+        }
+    </style>
+</head>
+<body>
+<h1>Parser вакансий</h1>
+
+<div class="card">
+    <h2>1. Разобрать вакансию</h2>
+    <form id="parse-form" class="row">
+        <input id="vacancy-url" type="url" required
+               value="https://career.habr.com/vacancies/1000169168"
+               placeholder="Ссылка на вакансию">
+        <button type="submit">Разобрать</button>
+        <button type="button" class="secondary" id="async-button">Асинхронно</button>
+    </form>
+    <div class="row" style="margin-top:10px">
+        <button type="button" class="secondary" data-url="https://career.habr.com/vacancies/1000169168">
+            Habr Career
+        </button>
+        <button type="button" class="secondary" data-url="https://zarplata.ru/vacancy/138963182">
+            Zarplata.ru
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>2. Результаты из H2 с фильтрацией и сортировкой</h2>
+    <form id="answer-form" class="row">
+        <label>Город <input id="filter-city" type="text" placeholder="например, Москва"></label>
+        <label>Компания <input id="filter-company" type="text" placeholder="например, Неолант"></label>
+        <label>Название <input id="filter-title" type="text" placeholder="например, аналитик"></label>
+        <label>Сортировка
+            <select id="sort-by">
+                <option value="publicationDate">дата</option>
+                <option value="title">название</option>
+                <option value="company">компания</option>
+                <option value="salary">зарплата</option>
+                <option value="city">город</option>
+                <option value="id">id</option>
+            </select>
+        </label>
+        <label>Направление
+            <select id="direction">
+                <option value="desc">по убыванию</option>
+                <option value="asc">по возрастанию</option>
+            </select>
+        </label>
+        <label>Страница <input id="page" type="number" min="0" value="0" style="width:80px"></label>
+        <label>Размер <input id="size" type="number" min="1" max="100" value="10" style="width:80px"></label>
+        <button type="submit">Показать /answer</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Состояние</h2>
+    <div id="status">Готово. Нажмите «Разобрать» или «Показать /answer».</div>
+    <pre id="output">Ответ появится здесь.</pre>
+    <div class="row">
+        <button type="button" class="secondary" id="jobs-button">Показать задачи</button>
+        <button type="button" class="secondary" id="clear-button">Очистить вывод</button>
+    </div>
+</div>
+
+<script>
+    const urlInput = document.getElementById('vacancy-url');
+    const statusBox = document.getElementById('status');
+    const output = document.getElementById('output');
+    const parseForm = document.getElementById('parse-form');
+    const answerForm = document.getElementById('answer-form');
+
+    function setStatus(message) {
+        statusBox.textContent = message;
+    }
+
+    function show(data, message) {
+        setStatus(message);
+        output.textContent = typeof data === 'string'
+            ? data
+            : JSON.stringify(data, null, 2);
+    }
+
+    function showError(error) {
+        setStatus('Ошибка');
+        output.textContent = error instanceof Error ? error.message : String(error);
+    }
+
+    async function request(url, options) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let data = text;
+
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch (ignored) {
+            // Сервер вернул не JSON — покажем текст как есть.
+        }
+
+        if (!response.ok) {
+            const detail = data && typeof data === 'object'
+                ? (data.detail || data.title || JSON.stringify(data))
+                : data;
+            throw new Error('HTTP ' + response.status + ': ' + detail);
+        }
+
+        return data;
+    }
+
+    async function parseVacancy(url) {
+        if (!url) {
+            setStatus('Укажите ссылку на вакансию');
+            return;
+        }
+
+        setStatus('Запрашиваю страницу с сайта и разбираю...');
+
+        try {
+            const vacancy = await request('/api/vacancies/parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            show(vacancy, 'Вакансия разобрана и сохранена в H2');
+        } catch (error) {
+            showError(error);
+        }
+    }
+
+    async function parseVacancyAsync(url) {
+        if (!url) {
+            setStatus('Укажите ссылку на вакансию');
+            return;
+        }
+
+        setStatus('Ставлю задачу в пул потоков...');
+
+        try {
+            let job = await request('/api/vacancies/parse/async', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+
+            show(job, 'Задача ' + job.id + ' создана, статус ' + job.status);
+
+            for (let attempt = 0; attempt < 60; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                job = await request('/api/vacancies/jobs/' + encodeURIComponent(job.id));
+                show(job, 'Задача ' + job.id + ', статус ' + job.status);
+
+                if (job.status === 'DONE' || job.status === 'FAILED') {
+                    break;
+                }
+            }
+        } catch (error) {
+            showError(error);
+        }
+    }
+
+    async function loadAnswer() {
+        const params = new URLSearchParams();
+        params.set('page', document.getElementById('page').value || '0');
+        params.set('size', document.getElementById('size').value || '10');
+        params.set('sortBy', document.getElementById('sort-by').value);
+        params.set('direction', document.getElementById('direction').value);
+
+        const filters = {
+            city: document.getElementById('filter-city').value.trim(),
+            company: document.getElementById('filter-company').value.trim(),
+            title: document.getElementById('filter-title').value.trim()
+        };
+
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value) {
+                params.set(key, value);
+            }
+        });
+
+        setStatus('Читаю результаты из H2...');
+
+        try {
+            const answer = await request('/answer?' + params.toString());
+            show(answer, 'Найдено ' + answer.totalElements + ' вакансий');
+        } catch (error) {
+            showError(error);
+        }
+    }
+
+    async function loadJobs() {
+        setStatus('Читаю список задач...');
+
+        try {
+            const jobs = await request('/api/vacancies/jobs');
+            show(jobs, 'Задач: ' + jobs.length);
+        } catch (error) {
+            showError(error);
+        }
+    }
+
+    parseForm.addEventListener('submit', event => {
+        event.preventDefault();
+        parseVacancy(urlInput.value.trim());
+    });
+
+    document.getElementById('async-button').addEventListener('click', () => {
+        parseVacancyAsync(urlInput.value.trim());
+    });
+
+    document.querySelectorAll('[data-url]').forEach(button => {
+        button.addEventListener('click', () => {
+            urlInput.value = button.dataset.url;
+            parseVacancy(button.dataset.url);
+        });
+    });
+
+    answerForm.addEventListener('submit', event => {
+        event.preventDefault();
+        loadAnswer();
+    });
+
+    document.getElementById('jobs-button').addEventListener('click', loadJobs);
+    document.getElementById('clear-button').addEventListener('click', () => {
+        output.textContent = 'Ответ появится здесь.';
+        setStatus('Готово.');
+    });
+</script>
+</body>
+</html>

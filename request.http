@@ -1,0 +1,35 @@
+### Разбор вакансии Habr Career
+POST http://localhost:8080/api/vacancies/parse
+Content-Type: application/json
+
+< parse-request.json
+
+### Разбор вакансии Zarplata.ru
+POST http://localhost:8080/api/vacancies/parse
+Content-Type: application/json
+
+< parse-zarplata-request.json
+
+### Асинхронный разбор
+POST http://localhost:8080/api/vacancies/parse/async
+Content-Type: application/json
+
+< parse-request.json
+
+### Список задач
+GET http://localhost:8080/api/vacancies/jobs
+
+### Получение результатов с пагинацией и сортировкой
+GET http://localhost:8080/answer?page=0&size=10&sortBy=publicationDate&direction=desc
+
+### Фильтрация по городу, компании и названию
+GET http://localhost:8080/answer?city=Тюмень&company=Газификация&title=Бухгалтер&page=0&size=10&sortBy=salary&direction=desc
+
+### Сортировка по зарплате
+GET http://localhost:8080/answer?page=0&size=10&sortBy=salary&direction=desc
+
+### Проверка ошибки: пустой URL
+POST http://localhost:8080/api/vacancies/parse
+Content-Type: application/json
+
+< parse-empty.json
