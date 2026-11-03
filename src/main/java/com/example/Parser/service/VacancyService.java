@@ -33,9 +33,6 @@ public class VacancyService {
         return vacancyRepository.save(vacancy);
     }
 
-    /**
-     * Сохраняет новую вакансию или обновляет уже сохранённую с тем же URL.
-     */
     @Transactional
     public Vacancy upsert(Vacancy parsedVacancy) {
         return vacancyRepository.findByUrl(parsedVacancy.getUrl())
