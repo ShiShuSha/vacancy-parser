@@ -36,9 +36,8 @@ public class VacancyController {
         return ResponseEntity.ok(vacancy);
     }
 
-    /**
-     * Асинхронный разбор: сразу возвращается id задачи.
-     */
+    //Асинхронный разбор: сразу возвращается id задачи.
+    
     @PostMapping("/parse/async")
     public ResponseEntity<ParseJobView> parseAsync(@Valid @RequestBody ParseRequest request) {
         ParseJob job = parseJobService.submit(request.getUrl());
